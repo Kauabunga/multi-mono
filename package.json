@@ -1,6 +1,14 @@
 {
-  "name": "multi-mono",
+  "name": "@kauabunga/multi-mono",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT"
+  "main": "bin/index.js",
+  "license": "MIT",
+  "bin": {
+    "multi-mono": "bin/index.js"
+  },
+  "dependencies": {
+    "async": "^3.2.4",
+    "inquirer": "^8.0.0",
+    "shell-exec": "^1.1.2"
+  }
 }
