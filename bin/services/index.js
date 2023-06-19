@@ -4,10 +4,6 @@ const path = require("path");
 const fs = require("fs");
 const { default: shellExec } = require("shell-exec");
 
-const day = new Date().toLocaleDateString().replace(/\//g, "-");
-const UPDATE_BRANCH_NAME = `chore/update-dependencies-${day}`;
-const UPDATE_COMMIT = `Updating dependencies ${day}`;
-
 async function assertTooling(tool) {
   return shellExec(`type ${tool}`).then((out) => {
     if (out.code !== 0) {
@@ -24,7 +20,7 @@ async function getFolders() {
 }
 
 async function getInfo(folder) {
-  const [isYarn, isYarnWorkspace, isPython, branch, master, clean] =
+  const [isYarn, isYarnWorkspace, isPython, branch, master, clean, dirty] =
     await Promise.all([
       isYarnFolder(folder),
       isYarnWorkspaceFolder(folder),
@@ -32,48 +28,59 @@ async function getInfo(folder) {
       getBranchName(folder),
       isMaster(folder),
       isClean(folder),
+      isDirty(folder),
     ]);
 
-  return { isYarn, isYarnWorkspace, isPython, branch, master, clean };
+  return { isYarn, isYarnWorkspace, isPython, branch, master, clean, dirty };
 }
 
 async function checkout(folder, branch) {
   return executeCommandSuccess(`cd ${folder} && git checkout ${branch}`);
 }
 
-async function isOriginExists(folder) {
+async function isOriginExists(folder, branch) {
   return shellExec(
-    `cd ${folder} && git ls-remote --exit-code --heads origin ${UPDATE_BRANCH_NAME}`
+    `cd ${folder} && git ls-remote --exit-code --heads origin ${branch}`
   ).then((out) => out.code === 0);
 }
 
-async function createUpdateBranch(folder) {
+async function createBranch(folder, branch) {
+  return executeCommandSuccess(`cd ${folder} && git checkout -b ${branch}`);
+}
+
+async function deleteBranch(folder, branch) {
+  return shellExec(`cd ${folder} && git branch -D ${branch}`);
+}
+
+async function commitBranch(folder, commit) {
+  return executeCommandSuccess(`cd ${folder} && git commit -am "${commit}"`);
+}
+
+async function pushBranch(folder, branch) {
   return executeCommandSuccess(
-    `cd ${folder} && git checkout -b ${UPDATE_BRANCH_NAME}`
+    `cd ${folder} && git push origin ${branch} --force`
   );
 }
 
-async function deleteUpdateBranch(folder) {
-  return shellExec(`cd ${folder} && git branch -D ${UPDATE_BRANCH_NAME}`);
-}
-
-async function commitBranch(folder) {
+async function createPr(folder, title, body) {
   return executeCommandSuccess(
-    `cd ${folder} && git commit -am "${UPDATE_COMMIT}"`
+    `cd ${folder} && gh pr create --title "${title}" --body "${body}"`
   );
 }
 
-async function pushBranch(folder) {
-  return executeCommandSuccess(
-    `cd ${folder} && git push origin ${UPDATE_BRANCH_NAME} --force`
+async function getPrStatus(folder) {
+  console.log(`Getting PR info: ${folder}`);
+  const { stdout } = await executeCommandSuccess(
+    `cd ${folder} && gh pr status --json id,title`
   );
+
+  return JSON.parse(stdout);
 }
 
-async function createPr(folder) {
-  console.log(`Creating PR: ${folder}`);
-  return executeCommandSuccess(
-    `cd ${folder} && gh pr create --title "${UPDATE_BRANCH_NAME}" --body "${UPDATE_COMMIT}"`
-  );
+async function getPrCurrentBranchTitle(folder) {
+  const { currentBranch } = await getPrStatus(folder);
+  const { title } = currentBranch || {};
+  return title;
 }
 
 async function updateYarnDeps(folder) {
@@ -158,11 +165,13 @@ module.exports = {
   getFolders,
   checkout,
   isOriginExists,
-  createUpdateBranch,
-  deleteUpdateBranch,
+  createBranch,
+  deleteBranch,
   commitBranch,
   pushBranch,
   createPr,
+  getPrStatus,
+  getPrCurrentBranchTitle,
   updateYarnDeps,
   updatePythonDeps,
   isYarnFolder,
@@ -174,8 +183,4 @@ module.exports = {
   isClean,
   isDirty,
   executeCommandSuccess,
-
-  day,
-  UPDATE_BRANCH_NAME,
-  UPDATE_COMMIT,
 };

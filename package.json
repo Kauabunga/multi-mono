@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "bin/index.js",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "multi-mono": "bin/index.js"
   },
@@ -31,8 +34,9 @@
       "prettier"
     ],
     "rules": {
-      "no-use-before-define": 0,
-      "no-console": 0
+      "no-console": 0,
+      "no-unused-vars": 0,
+      "no-use-before-define": 0
     }
   }
 }
